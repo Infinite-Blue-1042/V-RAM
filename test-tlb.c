@@ -13,14 +13,10 @@
 #include <signal.h>
 #include <math.h>
 #include <time.h>
-
 #define PAGE_SIZE 4096
-
 #define FREQ 3.9
-
 static int test_hugepage = 0;
 static int random_list = 0;
-
 static void die(const char *fmt, ...)
 {
 	va_list argp;
@@ -30,14 +26,12 @@ static void die(const char *fmt, ...)
 	fputc('\n', stderr);
 	exit(1);
 }
-
 static volatile int stop = 0;
 
 void alarm_handler(int sig)
 {
 	stop = 1;
 }
-
 unsigned long usec_diff(struct timeval *a, struct timeval *b)
 {
 	unsigned long usec;
@@ -46,14 +40,6 @@ unsigned long usec_diff(struct timeval *a, struct timeval *b)
 	usec += b->tv_usec - a->tv_usec;
 	return usec;
 }
-
-/*
- * Warmup run.
- *
- * This is mainly to make sure that we can go around the
- * map without timing any writeback activity from the cache
- * from creating the map.
- */
 static unsigned long warmup(void *map)
 {
 	unsigned int offset = 0;
@@ -75,13 +61,6 @@ static double do_test(void *map)
 		.it_interval = { 0, 0 },
 		.it_value = { 0, 0 },
 	};
-
-	/*
-	 * Do one run without counting, and make sure we can do
-	 * at least five runs, and have at least about 0.2s of
-	 * timing granularity (0.2s selected randomly to make the
-	 * run-of-five take 1s in the fast case).
-	 */
 	usec = warmup(map) * 5;
 	if (usec < 200000)
 		usec = 200000;
@@ -99,14 +78,9 @@ static double do_test(void *map)
 	} while (!stop);
 	gettimeofday(&end, NULL);
 	usec = usec_diff(&start, &end);
-
-	// Make sure the compiler doesn't compile away offset
 	*(volatile unsigned int *)(map + offset);
-
-	// return cycle time in ns
 	return 1000 * (double) usec / count;
 }
-
 static unsigned long get_num(const char *str)
 {
 	char *end, c;
@@ -134,7 +108,6 @@ static unsigned long get_num(const char *str)
 	}
 	return val;
 }
-
 static void randomize_map(void *map, unsigned long size, unsigned long stride)
 {
 	unsigned long off;
@@ -144,20 +117,14 @@ static void randomize_map(void *map, unsigned long size, unsigned long stride)
 	rnd = calloc(size / stride + 1, sizeof(unsigned int));
 	if (!rnd)
 		die("out of memory");
-
-	/* Create sorted list of offsets */
 	for (n = 0, off = 0; off < size; n++, off += stride)
 		rnd[n] = off;
-
-	/* Randomize the offsets */
 	for (n = 0, off = 0; off < size; n++, off += stride) {
 		unsigned int m = (unsigned long)random() % (size / stride);
 		unsigned int tmp = rnd[n];
 		rnd[n] = rnd[m];
 		rnd[m] = tmp;
 	}
-
-	/* Create a circular list from the random offsets */
 	lastpos = map;
 	for (n = 0, off = 0; off < size; n++, off += stride) {
 		lastpos = map + rnd[n];
@@ -167,8 +134,6 @@ static void randomize_map(void *map, unsigned long size, unsigned long stride)
 
 	free(rnd);
 }
-
-// Hugepage size
 #define HUGEPAGE (2*1024*1024)
 
 static void *create_map(void *map, unsigned long size, unsigned long stride)
@@ -176,17 +141,6 @@ static void *create_map(void *map, unsigned long size, unsigned long stride)
 	unsigned int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 	unsigned long off, mapsize;
 	unsigned int *lastpos;
-
-	/*
-	 * If we're using hugepages, we will just re-use any existing
-	 * hugepage map - the issues with different physical page
-	 * allocations for cache associativity testing just isn't worth
-	 * it with large pages.
-	 *
-	 * With regular pages, just mmap over the old allocation to
-	 * force new page allocations. Hopefully this will then make
-	 * the virtual mapping different enough to matter for timings.
-	 */
 	if (map) {
 		if (test_hugepage)
 			return map;
@@ -212,12 +166,6 @@ static void *create_map(void *map, unsigned long size, unsigned long stride)
 
 		madvise(map, mapsize, MADV_HUGEPAGE);
 	} else {
-		/*
-		 * Christian Borntraeger tested on an s390, and had
-		 * transparent hugepages set to "always", which meant
-		 * that the small-page case never triggered at all
-		 * unless you explicitly ask for it.
-		 */
 		madvise(map, mapsize, MADV_NOHUGEPAGE);
 	}
 
@@ -260,12 +208,10 @@ int main(int argc, char **argv)
 		}
 		argv++;
 	}
-
 	size = get_num(argv[1]);
 	stride = get_num(argv[2]);
 	if (stride < 4 || size < stride)
 		die("bad arguments: test-tlb [-H] <size> <stride>");
-
 	map = NULL;
 	cycles = 1e10;
 	for (int i = 0; i < 5; i++) {
@@ -279,7 +225,6 @@ int main(int argc, char **argv)
 		if (d < cycles)
 			cycles = d;
 	}
-
 	printf("%6.2fns (~%.1f cycles)\n",
 		cycles, cycles*FREQ);
 	return 0;
