@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -135,7 +134,6 @@ static void randomize_map(void *map, unsigned long size, unsigned long stride)
 	free(rnd);
 }
 #define HUGEPAGE (2*1024*1024)
-
 static void *create_map(void *map, unsigned long size, unsigned long stride)
 {
 	unsigned int flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -146,7 +144,6 @@ static void *create_map(void *map, unsigned long size, unsigned long stride)
 			return map;
 		flags |= MAP_FIXED;
 	}
-
 	mapsize = size;
 	if (test_hugepage)
 		mapsize += 2*HUGEPAGE;
@@ -178,7 +175,6 @@ static void *create_map(void *map, unsigned long size, unsigned long stride)
 
 	return map;
 }
-
 int main(int argc, char **argv)
 {
 	unsigned long stride, size;
